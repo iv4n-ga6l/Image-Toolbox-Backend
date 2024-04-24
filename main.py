@@ -20,7 +20,6 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\t
 # pip install waitress
 
 
-
 app = Flask(__name__)
 CORS(app)
 
