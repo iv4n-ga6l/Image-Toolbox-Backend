@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import cv2
+import urllib.request
 import numpy as np
 import io
+import os
 from PIL import Image
 import pytesseract
 
@@ -23,11 +25,28 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\t
 app = Flask(__name__)
 CORS(app)
 
+
+def download_file(url):
+    with urllib.request.urlopen(url) as response:
+        return response.read()
+
 # detect objects in provided image
 def detect_objects(image):
     # Charger le modèle YOLOv3 pré-entraîné
     net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
     layer_names = net.getLayerNames()
+
+    # Load YOLOv3 weights and configuration from URL
+    # weights_url = "https://pjreddie.com/media/files/yolov3.weights"
+    # cfg_url = "https://opencv-tutorial.readthedocs.io/en/latest/_downloads/10e685aad953495a95c17bfecd1649e5/yolov3.cfg"
+    
+    # # Download weights and configuration files
+    # weights_data = download_file(weights_url)
+    # cfg_data = download_file(cfg_url)
+    
+    # # Load weights and configuration from memory
+    # net = cv2.dnn.readNetFromDarknet(io.BytesIO(weights_data), io.BytesIO(cfg_data))
+    # layer_names = net.getLayerNames()
     
     # Obtenir les noms des couches de sortie
     output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
@@ -383,6 +402,75 @@ def compare_images_endpoint():
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "Invalid file format. Only JPG, JPEG, and PNG are allowed."}), 400
+
+
+
+def load_graph_opt_model(model_path):
+    if not os.path.exists(model_path):
+        raise FileNotFoundError("Model file not found.")
+    net = cv2.dnn.readNetFromTensorflow(model_path)
+    return net
+
+def process_frame(net, frame, inWidth, inHeight, BODY_PARTS, POSE_PAIRS, thr):
+    frameHeight, frameWidth = frame.shape[:2]
+    net.setInput(cv2.dnn.blobFromImage(frame, 1.0, (inWidth, inHeight), (127.5, 127.5, 127.5), swapRB=True, crop=False))
+    out = net.forward()
+    out = out[:, :19, :, :]  # MobileNet output [1, 57, -1, -1], we only need the first 19 elements
+
+    assert(len(BODY_PARTS) == out.shape[1])
+
+    points = []
+    for i in range(len(BODY_PARTS)):
+        heatMap = out[0, i, :, :]
+        _, conf, _, point = cv2.minMaxLoc(heatMap)
+        x = (frameWidth * point[0]) / out.shape[3]
+        y = (frameHeight * point[1]) / out.shape[2]
+        points.append((int(x), int(y)) if conf > thr else None)
+
+    for pair in POSE_PAIRS:
+        partFrom, partTo = pair
+        idFrom, idTo = BODY_PARTS[partFrom], BODY_PARTS[partTo]
+        if points[idFrom] and points[idTo]:
+            cv2.line(frame, points[idFrom], points[idTo], (0, 255, 0), 3)
+            cv2.ellipse(frame, points[idFrom], (3, 3), 0, 0, 360, (0, 0, 255), cv2.FILLED)
+            cv2.ellipse(frame, points[idTo], (3, 3), 0, 0, 360, (0, 0, 255), cv2.FILLED)
+    return frame
+
+@app.route('/detect_open_poses', methods=['POST'])
+def detect_open_poses():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    if file and file.filename.endswith(('.jpg', '.jpeg', '.png')):
+        try:
+            net = load_graph_opt_model('graph_opt.pb')
+            frame = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_COLOR)
+
+            BODY_PARTS = { "Nose": 0, "Neck": 1, "RShoulder": 2, "RElbow": 3, "RWrist": 4,
+                   "LShoulder": 5, "LElbow": 6, "LWrist": 7, "RHip": 8, "RKnee": 9,
+                   "RAnkle": 10, "LHip": 11, "LKnee": 12, "LAnkle": 13, "REye": 14,
+                   "LEye": 15, "REar": 16, "LEar": 17, "Background": 18 }
+
+            POSE_PAIRS = [ ["Neck", "RShoulder"], ["Neck", "LShoulder"], ["RShoulder", "RElbow"],
+                   ["RElbow", "RWrist"], ["LShoulder", "LElbow"], ["LElbow", "LWrist"],
+                   ["Neck", "RHip"], ["RHip", "RKnee"], ["RKnee", "RAnkle"], ["Neck", "LHip"],
+                   ["LHip", "LKnee"], ["LKnee", "LAnkle"], ["Neck", "Nose"], ["Nose", "REye"],
+                   ["REye", "REar"], ["Nose", "LEye"], ["LEye", "LEar"] ]
+            
+            frame = process_frame(net, frame, 368, 368, BODY_PARTS, POSE_PAIRS, 0.2)
+            _, img_encoded = cv2.imencode('.jpg', frame)
+            return send_file(io.BytesIO(img_encoded.tobytes()), mimetype='image/jpeg'), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "Invalid file format. Only JPG, JPEG, and PNG are allowed."}), 400
+
+
 
 
 
