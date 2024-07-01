@@ -180,14 +180,14 @@ def apply_filter():
             
             # Apply filter based on filter type
             if filter_type == 'blur':
-                filtered_img = cv2.blur(img, (5, 5))  # Example: applying blur filter
+                filtered_img = cv2.blur(img, (5, 5))  # applying blur filter
             elif filter_type == 'sharpen':
                 kernel = np.array([[-1, -1, -1],
                                    [-1,  9, -1],
                                    [-1, -1, -1]])
-                filtered_img = cv2.filter2D(img, -1, kernel)  # Example: applying sharpen filter
+                filtered_img = cv2.filter2D(img, -1, kernel)  # applying sharpen filter
             elif filter_type == 'grayscale':
-                filtered_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # Example: converting to grayscale
+                filtered_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # converting to grayscale
             else:
                 return jsonify({"error": "Invalid filter type. Available options: blur, sharpen, grayscale"}), 400
             
