@@ -3,3 +3,16 @@
 
 ### Install 
 pip install -r requirements.txt
+
+<!-- 
+# https://pypi.org/project/pytesseract/
+# https://tesseract-ocr.github.io/tessdoc/Downloads.html
+# https://sourceforge.net/projects/tesseract-ocr-alt/files/
+
+# pip install flask-cors
+
+# generate requirements.txt
+# pip freeze > requirements.txt
+
+# pip install waitress
+--> 
