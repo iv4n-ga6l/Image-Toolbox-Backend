@@ -23,7 +23,7 @@ class YOLOv3Detector(BaseObjectDetector):
     def detect_objects(self, image):
         # Load the image
         img = cv2.imdecode(np.fromstring(image.read(), np.uint8), cv2.IMREAD_COLOR)
-        height, width, channels = img.shape
+        height, width, _ = img.shape
 
         # Preprocess the image
         blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
@@ -77,7 +77,6 @@ class YOLOv3Detector(BaseObjectDetector):
     def count_objects(self, image):
         # Load the image
         img = cv2.imdecode(np.fromstring(image.read(), np.uint8), cv2.IMREAD_COLOR)
-        height, width, channels = img.shape
 
         # Preprocess the image
         blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)

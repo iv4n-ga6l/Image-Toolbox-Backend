@@ -1,2 +1,6 @@
-models
+models/coco.names
+models/tesseract-ocr-setup-3.02.02.exe
+models/yolov3.cfg
+models/yolov3.weights
 __pycache__
+.env

@@ -7,7 +7,7 @@ from PIL import Image
 import pytesseract
 from app.utils.image_utils import adjust_brightness, process_frame, load_graph_opt_model, get_base_path
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract'
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract'
 
 image_processing = Blueprint('image_processing', __name__)
 
