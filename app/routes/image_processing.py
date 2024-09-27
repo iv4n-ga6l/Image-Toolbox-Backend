@@ -190,7 +190,7 @@ def detect_open_poses():
     
     if file and file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
         try:
-            graph_opt_path = os.path.join(get_base_path(), 'graph_opt.pb')
+            graph_opt_path = os.path.join(get_base_path(), 'open_pose.pb.pb')
             net = load_graph_opt_model(graph_opt_path)
             frame = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
