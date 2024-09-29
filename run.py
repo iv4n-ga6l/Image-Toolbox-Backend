@@ -3,6 +3,7 @@ from flask_cors import CORS
 from config import config
 from app.routes.object_detection import object_detection
 from app.routes.image_processing import image_processing
+from app.routes.object_segmentation import object_segmentation
 from waitress import serve
 import os
 
@@ -14,6 +15,7 @@ def create_app(config_name='development'):
     # Register blueprints
     app.register_blueprint(object_detection)
     app.register_blueprint(image_processing)
+    app.register_blueprint(object_segmentation)
 
     return app
 
