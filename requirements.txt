@@ -1,8 +1,8 @@
 Flask==3.0.2
 Flask-Cors==4.0.0
 waitress==3.0.0
-numpy>=1.21.2
-opencv-python==4.9.0.80
+numpy
+opencv-python
 openpyxl==3.1.2
 pytesseract==0.3.10
 requests==2.31.0
