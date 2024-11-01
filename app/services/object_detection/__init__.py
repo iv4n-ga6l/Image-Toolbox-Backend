@@ -16,7 +16,7 @@ def get_object_detector(model_name):
         return YOLOv8Detector()
     elif model_name == 'yolov10':
         return YOLOv10Detector()
-    elif model_name == 'yolov11':
+    elif model_name == 'yolo11':
         return YOLOv11Detector()
     else:
         raise ValueError(f"Unsupported model: {model_name}")

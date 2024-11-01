@@ -25,11 +25,45 @@ def resize_image():
         try:
             width = request.args.get('width', default=300, type=int)
             height = request.args.get('height', default=300, type=int)
-
+            is_aspect_ratio_locked = request.args.get('isAspectRatioLocked', default='false', type=str).lower() == 'true'
+            
+            # Read the original image
             img = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
             
-            resized_img = cv2.resize(img, (width, height))
+            # Get original image dimensions
+            orig_height, orig_width = img.shape[:2]
+            original_aspect_ratio = orig_width / orig_height
             
+            if is_aspect_ratio_locked:
+                # Calculate resize keeping aspect ratio
+                if width / height > original_aspect_ratio:
+                    # Width is proportionally larger
+                    new_width = int(height * original_aspect_ratio)
+                    new_height = height
+                else:
+                    # Height is proportionally larger
+                    new_width = width
+                    new_height = int(width / original_aspect_ratio)
+                
+                # Resize the image
+                resized_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+                
+                # Create a blank canvas of the original requested size
+                canvas = np.zeros((height, width, 3), dtype=np.uint8) + 255  # White background
+                
+                # Calculate position to center the resized image
+                start_x = (width - new_width) // 2
+                start_y = (height - new_height) // 2
+                
+                # Place the resized image on the canvas
+                canvas[start_y:start_y+new_height, start_x:start_x+new_width] = resized_img
+                
+                resized_img = canvas
+            else:
+                # Standard resize without maintaining aspect ratio
+                resized_img = cv2.resize(img, (width, height))
+            
+            # Encode the image
             _, img_encoded = cv2.imencode('.jpg', resized_img)
             
             return send_file(io.BytesIO(img_encoded.tobytes()), mimetype='image/jpeg'), 200
@@ -51,7 +85,6 @@ def apply_filter():
     if file and file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
         try:
             filter_type = request.args.get('filter', default='blur', type=str)
-
             img = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
             
             if filter_type == 'blur':
@@ -63,8 +96,35 @@ def apply_filter():
                 filtered_img = cv2.filter2D(img, -1, kernel)
             elif filter_type == 'grayscale':
                 filtered_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            elif filter_type == 'sepia':
+                # Create sepia tone filter
+                kernel = np.array([[0.272, 0.534, 0.131],
+                                   [0.349, 0.686, 0.168],
+                                   [0.393, 0.769, 0.189]])
+                filtered_img = cv2.transform(img, kernel)
+                filtered_img = np.clip(filtered_img, 0, 255).astype(np.uint8)
+            elif filter_type == 'edge_enhance':
+                # Edge enhancement kernel
+                kernel = np.array([[-1, -1, -1],
+                                   [-1,  9, -1],
+                                   [-1, -1, -1]])
+                filtered_img = cv2.filter2D(img, -1, kernel)
+            elif filter_type == 'emboss':
+                # Emboss kernel
+                kernel = np.array([[-2, -1, 0],
+                                   [-1,  1, 1],
+                                   [ 0,  1, 2]])
+                filtered_img = cv2.filter2D(img, -1, kernel)
+                # Add 128 to center the pixel values around gray
+                filtered_img = cv2.convertScaleAbs(filtered_img, alpha=1, beta=128)
             else:
-                return jsonify({"error": "Invalid filter type. Available options: blur, sharpen, grayscale"}), 400
+                return jsonify({
+                    "error": "Invalid filter type. Available options: blur, sharpen, grayscale, sepia, edge_enhance, emboss"
+                }), 400
+            
+            # Ensure the image is in the correct format for encoding
+            if len(filtered_img.shape) == 2:  # Grayscale
+                filtered_img = cv2.cvtColor(filtered_img, cv2.COLOR_GRAY2BGR)
             
             _, img_encoded = cv2.imencode('.jpg', filtered_img)
             
@@ -194,6 +254,10 @@ def detect_open_poses():
             net = load_graph_opt_model(graph_opt_path)
             frame = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
+            showSekeleton = request.args.get('showSekeleton', type=bool)
+            showJointConfidence = request.args.get('showJointConfidence', type=bool)
+            confidence_threshold = request.args.get('confidence_threshold', type=float)
+
             BODY_PARTS = { "Nose": 0, "Neck": 1, "RShoulder": 2, "RElbow": 3, "RWrist": 4,
                    "LShoulder": 5, "LElbow": 6, "LWrist": 7, "RHip": 8, "RKnee": 9,
                    "RAnkle": 10, "LHip": 11, "LKnee": 12, "LAnkle": 13, "REye": 14,
@@ -205,7 +269,17 @@ def detect_open_poses():
                    ["LHip", "LKnee"], ["LKnee", "LAnkle"], ["Neck", "Nose"], ["Nose", "REye"],
                    ["REye", "REar"], ["Nose", "LEye"], ["LEye", "LEar"] ]
             
-            frame = process_frame(net, frame, 368, 368, BODY_PARTS, POSE_PAIRS, 0.2)
+            frame = process_frame(
+                net=net,
+                frame=frame,
+                inWidth=368,
+                inHeight=368,
+                BODY_PARTS=BODY_PARTS,
+                POSE_PAIRS=POSE_PAIRS,
+                confidenceThreshold=confidence_threshold,
+                showSkeleton=showSekeleton,
+                showJointConfidence=showJointConfidence
+            )
             _, img_encoded = cv2.imencode('.jpg', frame)
             return send_file(io.BytesIO(img_encoded.tobytes()), mimetype='image/jpeg'), 200
         except Exception as e:

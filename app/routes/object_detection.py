@@ -11,6 +11,7 @@ def detect_objects():
     
     file = request.files['file']
     model_name = request.args.get('model', default='yolov3')
+    confidence_threshold = request.args.get('confidence_threshold', type=float)
     
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
@@ -18,7 +19,7 @@ def detect_objects():
     if file and file.filename.endswith(('.jpg', '.jpeg', '.png')):
         try:
             detector = get_object_detector(model_name)
-            processed_image = detector.detect_objects(file)
+            processed_image = detector.detect_objects(file, confidence_threshold)
             return send_file(io.BytesIO(processed_image), mimetype='image/jpeg'), 200
         except Exception as e:
             print(str(e))
