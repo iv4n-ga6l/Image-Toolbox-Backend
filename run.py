@@ -6,7 +6,9 @@ from app.routes.image_processing import image_processing
 from app.routes.object_segmentation import object_segmentation
 from waitress import serve
 import os
+from pycache_handler.handler import py_cache_handler
 
+@py_cache_handler
 def create_app(config_name='development'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
